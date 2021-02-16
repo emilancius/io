@@ -1,6 +1,9 @@
 package org.cosybox.commons.io
 
+import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceExists
+import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceIsDirectory
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -29,6 +32,34 @@ class Resource(val path: Path) {
             }
         }
         parent = path.parent?.let { Resource(it) }
+    }
+
+    fun exists(): Boolean = Files.exists(path)
+
+    fun isDirectory(): Boolean {
+        resourceExists(this)
+        return Files.isDirectory(path)
+    }
+
+    fun list(depth: Int = 1): List<Resource> {
+        resourceExists(this)
+        resourceIsDirectory(this)
+
+        if (depth < 1) {
+            return emptyList()
+        }
+
+        val resources = ArrayList<Resource>()
+
+        Files.list(path).map { Resource(it) }.forEach { resource ->
+            resources.add(resource)
+
+            if (resource.isDirectory()) {
+                resource.list(depth.dec()).forEach { resources.add(it) }
+            }
+        }
+
+        return resources
     }
 
     override fun equals(other: Any?): Boolean {
