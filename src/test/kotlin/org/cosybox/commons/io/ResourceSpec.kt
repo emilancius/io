@@ -109,6 +109,6 @@ class ResourceSpec {
         val resources = Resource(directory).list(depth = 3)
 
         assertEquals(5, resources.size)
-        assertIterableEquals(contents.map { Resource(it) }, resources)
+        contents.forEach { assertTrue(resources.contains(Resource(it))) }
     }
 }
