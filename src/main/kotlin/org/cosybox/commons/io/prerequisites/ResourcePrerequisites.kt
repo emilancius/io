@@ -17,4 +17,16 @@ object ResourcePrerequisites {
             throw ResourceException("Resource \"$resource\" is not a directory")
         }
     }
+
+    fun resourceIsAbsent(resource: Resource) {
+        if (exists(resource.path)) {
+            throw ResourceException("Resource \"$resource\" exists")
+        }
+    }
+
+    fun resourceParentExists(resource: Resource) {
+        if (resource.parent == null || !exists(resource.parent.path)) {
+            throw ResourceException("Resource \"$resource\" exists")
+        }
+    }
 }

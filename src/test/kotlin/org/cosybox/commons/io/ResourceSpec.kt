@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.nio.charset.StandardCharsets
+import java.nio.file.Files.*
 import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.stream.Collectors
 
 class ResourceSpec {
 
@@ -173,5 +175,284 @@ class ResourceSpec {
         environment.createResource("DIRECTORY_A", "DIRECTORY_B", "FILE_B.txt", contents = "TEST_B") // 6 - 24
 
         assertEquals(12, directory.bytesCount())
+    }
+
+    @Test
+    fun `Given resource, that does not exist, throws ResourceException in case tried to remove resource`() {
+        assertThrows<ResourceException> {
+            Resource("FILE_A.txt").remove()
+        }
+    }
+
+    @Test
+    fun `Given resource, it is removed in case tried to remove resource`() {
+        val resource = Resource(environment.createEmptyResource("FILE_A.txt"))
+        resource.remove()
+
+        assertFalse(exists(resource.path))
+    }
+
+    @Test
+    fun `Given directory, it and it's contents are removed in case tried to remove resource`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createEmptyResource("DIRECTORY_A", "FILE_A.txt")
+        environment.createDirectory("DIRECTORY_A", "DIRECTORY_B")
+        environment.createEmptyResource("DIRECTORY_A", "DIRECTORY_B", "FILE_B.txt")
+        directory.remove()
+
+        assertFalse(exists(directory.path))
+    }
+
+    @Test
+    fun `Given resource, that does not exist, throws ResourceException in case tried to remove it's contents`() {
+        assertThrows<ResourceException> {
+            Resource("FILE_A.txt").removeContents()
+        }
+    }
+
+    @Test
+    fun `Given resource, that is not a directory, throws ResourceException in case tried to remove it's contents`() {
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).removeContents()
+        }
+    }
+
+    @Test
+    fun `Given directory, removes it's contents in case tried to remove it's contents`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createEmptyResource("DIRECTORY_A", "FILE_A.txt")
+        environment.createDirectory("DIRECTORY_A", "DIRECTORY_B")
+        environment.createEmptyResource("DIRECTORY_A", "DIRECTORY_B", "FILE_B.txt")
+        directory.removeContents()
+
+        assertTrue(exists(directory.path))
+        assertTrue(list(directory.path).collect(Collectors.toList()).isEmpty())
+    }
+
+    @Test
+    fun `Given resource, that does not exist, throws ResourceException in case it is tried to be copied into directory`() {
+        assertThrows<ResourceException> {
+            Resource("FILE_A.txt").copyTo(Resource(environment.createDirectory("DIRECTORY_A")))
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it is tried to be copied into directory, that does not exist`() {
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).copyTo(Resource("DIRECTORY_A"))
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it is tried to be copied into resource, that is not a directory`() {
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).copyTo(environment.createEmptyResource("FILE_B.txt"))
+        }
+    }
+
+    @Test
+    fun `Given resource, throws Resource exception in case it is tried to be copied into directory, but resource by that name exists in destination directory`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createEmptyResource("DIRECTORY_A", "FILE_A.txt")
+
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).copyTo(directory)
+        }
+    }
+
+    @Test
+    fun `Given resource, it is copied into destination directory`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+        val resourceCopied = resource.copyTo(directory)
+
+        assertTrue(exists(resource.path))
+        assertTrue(exists(resourceCopied.path))
+        assertEquals(1, list(directory.path).count())
+        assertEquals("TEST A", readString(resourceCopied.path))
+    }
+
+    @Test
+    fun `Given directory, it and it's contents are copied into destination directory`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        val directoryToBeCopied = Resource(environment.createDirectory("DIRECTORY_B"))
+        val resourceA = environment.createResource("DIRECTORY_B", "FILE_A.txt", contents = "TEST A")
+        val resourceB = environment.createResource("DIRECTORY_B", "FILE_B.txt", contents = "TEST B")
+        val resourceC = environment.createResource("DIRECTORY_B", "FILE_C.txt", contents = "TEST C")
+        val directoryCopied = directoryToBeCopied.copyTo(directory)
+
+
+        assertTrue(exists(directoryCopied.path))
+        assertTrue(exists(resourceA))
+        assertTrue(exists(resourceB))
+        assertTrue(exists(resourceC))
+        assertEquals(1, list(directory.path).count())
+        assertEquals(3, list(environment.resourceAt("DIRECTORY_A", "DIRECTORY_B")).collect(Collectors.toList()).size)
+
+        val resourceACopy = environment.resourceAt("DIRECTORY_A", "DIRECTORY_B", "FILE_A.txt")
+        val resourceBCopy = environment.resourceAt("DIRECTORY_A", "DIRECTORY_B", "FILE_B.txt")
+        val resourceCCopy = environment.resourceAt("DIRECTORY_A", "DIRECTORY_B", "FILE_C.txt")
+
+        assertTrue(exists(resourceACopy))
+        assertTrue(exists(resourceBCopy))
+        assertTrue(exists(resourceCCopy))
+        assertEquals("TEST A", readString(resourceACopy))
+        assertEquals("TEST B", readString(resourceBCopy))
+        assertEquals("TEST C", readString(resourceCCopy))
+    }
+
+    @Test
+    fun `Given resource does not exist, throws ResourceException in case it is tried to be copied`() {
+        assertThrows<ResourceException> {
+            Resource("FILE_A.txt").copyAs(Resource("FILE_A copy.txt"))
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it is tried to be copied, but destination resource exists`() {
+        val resource = Resource(environment.createEmptyResource("FILE_A.txt"))
+
+        assertThrows<ResourceException> {
+            resource.copyAs(resource)
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it is tried to be copied, but destination resource's parent directory does not exist`() {
+        val resource = Resource(environment.createEmptyResource("FILE_A.txt"))
+        val target = Paths
+            .get(ResourcesEnvironment.RESOURCES_DIRECTORY)
+            .resolve(environment.joinToPath("DIRECTORY_A", "FILE_A copy.txt"))
+
+        assertThrows<ResourceException> {
+            resource.copyAs(target)
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it is tried to be copied, but destination resource's parent is not a directory`() {
+        val resource = Resource(environment.createEmptyResource("FILE_A.txt"))
+        val target = environment.createEmptyResource("FILE_B.txt").resolve("FILE_A copy.txt")
+
+        assertThrows<ResourceException> {
+            resource.copyAs(target)
+        }
+    }
+
+    @Test
+    fun `Given resource, it is copied as provided destination resource`() {
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+        val copy = resource.copyAs(environment.createDirectory("DIRECTORY_A").resolve("FILE_A copy.txt"))
+
+        assertTrue(exists(resource.path))
+        assertEquals(1, list(copy.path.parent).count())
+        assertTrue(exists(copy.path))
+        assertEquals("TEST A", readString(copy.path))
+    }
+
+    @Test
+    fun `Given directory, it and it's contents are copied as provided destination resource`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createResource("DIRECTORY_A", "FILE_A.txt", contents = "TEST A")
+        environment.createResource("DIRECTORY_A", "FILE_B.txt", contents = "TEST B")
+        environment.createResource("DIRECTORY_A", "FILE_C.txt", contents = "TEST C")
+        val copy = directory
+            .copyAs(Resource(Paths.get(ResourcesEnvironment.RESOURCES_DIRECTORY).resolve("DIRECTORY_A copy")))
+
+        assertTrue(exists(copy.path))
+        assertEquals(3, list(copy.path).count())
+        assertEquals("TEST A", readString(environment.resourceAt("DIRECTORY_A copy", "FILE_A.txt")))
+        assertEquals("TEST B", readString(environment.resourceAt("DIRECTORY_A copy", "FILE_B.txt")))
+        assertEquals("TEST C", readString(environment.resourceAt("DIRECTORY_A copy", "FILE_C.txt")))
+    }
+
+    @Test
+    fun `Given resource, that does not exist, throws ResourceException in case it's tried to be renamed`() {
+        assertThrows<ResourceException> {
+            Resource("FILE_A.txt").renameTo("FILE_B.txt")
+        }
+    }
+
+    @Test
+    fun `Given resource, throws IllegalArgumentException in case it's tried to be renamed into empty name`() {
+        assertThrows<IllegalArgumentException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).renameTo("")
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it's tried to be renamed, but resource, that has the name, exists`() {
+        environment.createEmptyResource("FILE_B.txt")
+
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).renameTo("FILE_B.txt")
+        }
+    }
+
+    @Test
+    fun `Given resource, it is renamed to provided name`() {
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+        val renamed = resource.renameTo("FILE_B.txt")
+
+        assertFalse(exists(resource.path))
+        assertTrue(exists(renamed.path))
+        assertEquals("TEST A", readString(renamed.path))
+    }
+
+    @Test
+    fun `Given resource, that does not exist, throws ResourceException in case it's tried to be moved`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+
+        assertThrows<ResourceException> {
+            Resource("FILE_A.txt").moveTo(directory)
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it's tried to be moved to a directory, that does not exist`() {
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).moveTo(Resource("DIRECTORY_A"))
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case it's tried to be moved to resource, that is not a directory`() {
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt"))
+                .moveTo(Resource(environment.createEmptyResource("FILE_B.txt")))
+        }
+    }
+
+    @Test
+    fun `Given resource, throws ResourceException in case resource by that name exist in provided directory`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createEmptyResource("DIRECTORY_A", "FILE_A.txt")
+
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).moveTo(directory)
+        }
+    }
+
+    @Test
+    fun `Given resource, it is moved to provided directory`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+        val moved = resource.moveTo(directory)
+
+        assertFalse(exists(resource.path))
+        assertTrue(exists(moved.path))
+        assertEquals("TEST A", readString(environment.resourceAt("DIRECTORY_A", "FILE_A.txt")))
+    }
+
+    @Test
+    fun `Given directory, it and it's contents are moved to provided directory`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createResource("DIRECTORY_A", "FILE_A.txt", contents = "TEST A")
+        val moved = directory.moveTo(Resource(environment.createDirectory("DIRECTORY_B")))
+
+        assertFalse(exists(directory.path))
+        assertTrue(exists(moved.path))
+        assertEquals(1, list(moved.path).count())
+        assertEquals("TEST A", readString(environment.resourceAt("DIRECTORY_B", "DIRECTORY_A", "FILE_A.txt")))
     }
 }
