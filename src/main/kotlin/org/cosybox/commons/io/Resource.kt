@@ -1,7 +1,9 @@
 package org.cosybox.commons.io
 
 import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceExists
+import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceIsAbsent
 import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceIsDirectory
+import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceParentExists
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -70,10 +72,71 @@ class Resource(val path: Path) {
 
     fun bytesCount(): Long =
         if (isDirectory()) {
-            list(Int.MAX_VALUE).map { if (it.isDirectory()) 0L else it.bytesCount() }.sum()
+            list(Int.MAX_VALUE)
+                .map { if (it.isDirectory()) 0L else it.bytesCount() }
+                .sum()
         } else {
             Files.size(path)
         }
+
+    fun remove() {
+        if (isDirectory()) {
+            clearDirectory(this)
+        }
+
+        Files.delete(path)
+    }
+
+    fun removeContents() {
+        resourceExists(this)
+        resourceIsDirectory(this)
+        clearDirectory(this)
+    }
+
+    fun copyTo(directory: Resource): Resource {
+        resourceExists(this)
+        resourceExists(directory)
+        resourceIsDirectory(directory)
+
+        val resource = Resource(directory.path.resolve(name))
+
+        resourceIsAbsent(resource)
+        return copy(this, resource)
+    }
+
+    fun copyTo(directory: Path): Resource = copyTo(Resource(directory))
+
+    fun copyTo(directory: String): Resource = copyTo(Resource(directory))
+
+    fun copyAs(resource: Resource): Resource {
+        resourceExists(this)
+        resourceIsAbsent(resource)
+        resourceParentExists(resource)
+        resourceIsDirectory(resource.parent!!)
+        return copy(this, resource)
+    }
+
+    fun copyAs(resource: Path): Resource = copyAs(Resource(resource))
+
+    fun copyAs(resource: String): Resource = copyAs(Resource(resource))
+
+    fun renameTo(name: String): Resource {
+        require(!name.trim().isEmpty()) {
+            "Argument \"name\" cannot be empty"
+        }
+
+        resourceExists(this)
+        val resource = Resource(path.resolveSibling(name))
+        resourceIsAbsent(resource)
+        Files.move(path, resource.path)
+        return resource
+    }
+
+    fun moveTo(directory: Resource): Resource {
+        val resource = copyTo(directory)
+        remove()
+        return resource
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -98,4 +161,19 @@ class Resource(val path: Path) {
     }
 
     override fun toString(): String = path.toString()
+
+    private fun clearDirectory(directory: Resource) = directory.list(Int.MAX_VALUE)
+        .reversed()
+        .forEach { Files.delete(it.path) }
+
+    private fun copy(source: Resource, target: Resource): Resource {
+        Files.copy(source.path, target.path)
+
+        if (source.isDirectory()) {
+            source.list(Int.MAX_VALUE)
+                .forEach { Files.copy(it.path, target.path.resolve(source.path.relativize(it.path))) }
+        }
+
+        return target
+    }
 }
