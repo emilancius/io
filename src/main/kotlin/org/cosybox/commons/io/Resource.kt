@@ -62,6 +62,19 @@ class Resource(val path: Path) {
         return resources
     }
 
+    fun isEmpty(): Boolean {
+        resourceExists(this)
+        resourceIsDirectory(this)
+        return list().isEmpty()
+    }
+
+    fun bytesCount(): Long =
+        if (isDirectory()) {
+            list(Int.MAX_VALUE).map { if (it.isDirectory()) 0L else it.bytesCount() }.sum()
+        } else {
+            Files.size(path)
+        }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

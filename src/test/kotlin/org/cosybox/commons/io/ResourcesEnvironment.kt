@@ -48,6 +48,18 @@ class ResourcesEnvironment {
 
     fun createEmptyResource(vararg parts: String): Path = createEmptyResource(joinToPath(*parts))
 
+    fun createResource(resource: Path, contents: String? = null): Path =
+        if (contents == null || contents.isEmpty()) {
+            createEmptyResource(resource)
+        } else {
+            writeString(Paths.get(RESOURCES_DIRECTORY).resolve(resource), contents)
+        }
+
+    fun createResource(resource: String, contents: String? = null): Path = createResource(Paths.get(resource), contents)
+
+    fun createResource(vararg parts: String, contents: String? = null): Path =
+        createResource(joinToPath(*parts), contents)
+
     fun createDirectory(directory: Path): Path =
         if (exists(directory)) {
             throw RuntimeException("\"$directory\" exists")

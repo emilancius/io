@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 
 class ResourceSpec {
@@ -110,5 +111,67 @@ class ResourceSpec {
 
         assertEquals(5, resources.size)
         contents.forEach { assertTrue(resources.contains(Resource(it))) }
+    }
+
+    @Test
+    fun `Given a resource, that does not exist, throws ResourceException in case it is checked is it empty`() {
+        assertThrows<ResourceException> {
+            Resource("DIRECTORY_A").isEmpty()
+        }
+    }
+
+    @Test
+    fun `Given a resource, that is not a directory, throws ResourceException in case it is checked is it empty`() {
+        assertThrows<ResourceException> {
+            Resource(environment.createEmptyResource("FILE_A.txt")).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Given a directory, returns that it is empty in case it does not contain any inner resources`() {
+        assertTrue(Resource(environment.createDirectory("DIRECTORY_A")).isEmpty())
+    }
+
+    @Test
+    fun `Given a directory, returns that is is not empty in case it does contain any inner resources`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A"))
+        environment.createEmptyResource("DIRECTORY_A", "FILE_A.txt")
+
+        assertFalse(directory.isEmpty())
+    }
+
+    @Test
+    fun `Given a resource, that does not exist, throws ResourceException in case tried to calculate bytes count`() {
+        assertThrows<ResourceException> {
+            Resource("DIRECTORY_A").bytesCount()
+        }
+    }
+
+    @Test
+    fun `Given an empty directory, returns 0 in case tried to calculate bytes count`() {
+        assertEquals(0, Resource(environment.createDirectory("DIRECTORY_A")).bytesCount())
+    }
+
+    @Test
+    fun `Given an empty resource, returns 0 in case tried to calculate bytes count`() {
+        assertEquals(0, Resource(environment.createEmptyResource("DIRECTORY_A")).bytesCount())
+    }
+
+    @Test
+    fun `Given a non - empty resource, returns byte count in case tried to calculate bytes count`() {
+        // UTF-8 enc (1 - 4 bytes per character)
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST_A"))
+
+        assertEquals(6, resource.bytesCount())
+    }
+
+    @Test
+    fun `Given a non - empty directory, returns byte count sum of directory contents in case tried to calculate bytes count`() {
+        val directory = Resource(environment.createDirectory("DIRECTORY_A")) // 0
+        environment.createResource("DIRECTORY_A", "FILE_A.txt", contents = "TEST_A") // 6 - 24
+        environment.createDirectory("DIRECTORY_A", "DIRECTORY_B")
+        environment.createResource("DIRECTORY_A", "DIRECTORY_B", "FILE_B.txt", contents = "TEST_B") // 6 - 24
+
+        assertEquals(12, directory.bytesCount())
     }
 }
