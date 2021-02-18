@@ -455,4 +455,56 @@ class ResourceSpec {
         assertEquals(1, list(moved.path).count())
         assertEquals("TEST A", readString(environment.resourceAt("DIRECTORY_B", "DIRECTORY_A", "FILE_A.txt")))
     }
+
+    @Test
+    fun `Given input stream and path, throws ResourceException in case tried to create resource, that exists`() {
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+
+        assertThrows<ResourceException> {
+            newInputStream(resource.path).use { inputStream ->
+                Resource.createFromInputStream(inputStream, resource.path)
+            }
+        }
+    }
+
+    @Test
+    fun `Given input stream and path, throws ResourceException in case tried to create resource at directory that does not exist`() {
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+
+        assertThrows<ResourceException> {
+            newInputStream(resource.path).use { inputStream ->
+                val path = Paths.get(ResourcesEnvironment.RESOURCES_DIRECTORY)
+                    .resolve("DIRECTORY_A")
+                    .resolve("FILE_A.txt")
+                Resource.createFromInputStream(inputStream, path)
+            }
+        }
+    }
+
+    @Test
+    fun `Given input stream and path, throws ResourceException in case tried to create resource that has no directory as a parent`() {
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+        environment.createEmptyResource("FILE_B.txt")
+
+        assertThrows<ResourceException> {
+            newInputStream(resource.path).use { inputStream ->
+                val path = environment.resourceAt("FILE_B.txt").resolve("FILE_C.txt")
+                Resource.createFromInputStream(inputStream, path)
+            }
+        }
+    }
+
+    @Test
+    fun `Given input stream, creates resource`() {
+        val resource = Resource(environment.createResource("FILE_A.txt", contents = "TEST A"))
+        newInputStream(resource.path).use { inputStream ->
+            val path = Paths.get(ResourcesEnvironment.RESOURCES_DIRECTORY).resolve("FILE_A copy.txt")
+            Resource.createFromInputStream(inputStream, path)
+        }
+
+        val copy = environment.resourceAt("FILE_A copy.txt")
+
+        assertTrue(exists(copy))
+        assertEquals("TEST A", readString(copy))
+    }
 }

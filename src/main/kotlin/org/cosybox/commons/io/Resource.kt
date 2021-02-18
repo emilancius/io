@@ -5,6 +5,8 @@ import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceIsAbse
 import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceIsDirectory
 import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.resourceParentExists
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -14,6 +16,25 @@ class Resource(val path: Path) {
     companion object {
         private val PATH_SEPARATOR: Char = File.separatorChar
         private const val EXTENSION_SEPARATOR: Char = '.'
+
+        fun createFromInputStream(inputStream: InputStream, path: Path): Resource {
+            val resource = Resource(path)
+
+            resourceIsAbsent(resource)
+            resourceParentExists(resource)
+            resourceIsDirectory(resource.parent!!)
+
+            return inputStream.copyTo(resource)
+        }
+
+        fun createFromInputStream(inputStream: InputStream, path: String): Resource =
+            createFromInputStream(inputStream, Paths.get(path))
+
+        private fun InputStream.copyTo(resource: Resource): Resource =
+            resource.path.let {
+                Files.copy(this, it)
+                resource
+            }
     }
 
     val name: String
@@ -137,6 +158,14 @@ class Resource(val path: Path) {
         remove()
         return resource
     }
+
+    fun moveTo(directory: Path): Resource = moveTo(Resource(directory))
+
+    fun moveTo(directory: String): Resource = moveTo(Resource(directory))
+
+    fun openInputStream(): InputStream = Files.newInputStream(path)
+
+    fun openOutputStream(): OutputStream = Files.newOutputStream(path)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
