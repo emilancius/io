@@ -9,7 +9,7 @@ import java.nio.file.Paths
 class ResourcesEnvironment {
 
     companion object {
-        private const val ROOT_DIRECTORY = "environment"
+        const val ROOT_DIRECTORY = "environment"
         private val PATH_SEPARATOR: Char = File.separatorChar
     }
 
@@ -26,7 +26,7 @@ class ResourcesEnvironment {
             throw IOException("\"$path\" exists")
         }
 
-        return Resource(writeString(Paths.get(ROOT_DIRECTORY).resolve(path), ""))
+        return Resource(writeString(Paths.get(ROOT_DIRECTORY).resolve(path), contents ?: ""))
     }
 
     fun createResource(path: String, contents: String? = null): Resource =
