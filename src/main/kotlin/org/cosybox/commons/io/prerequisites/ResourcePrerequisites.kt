@@ -1,32 +1,47 @@
 package org.cosybox.commons.io.prerequisites
 
 import org.cosybox.commons.io.Resource
-import org.cosybox.commons.io.exceptions.ResourceException
+import org.cosybox.commons.io.exception.ResourceException
 import java.nio.file.Files.*
 
 object ResourcePrerequisites {
 
-    fun resourceExists(resource: Resource) {
-        if (!exists(resource.path)) {
-            throw ResourceException("Resource \"$resource\" could not be found")
-        }
-    }
+    fun require(requirement: ResourceRequirement, resource: Resource, message: String? = null) {
+        val path = resource.path
 
-    fun resourceIsDirectory(resource: Resource) {
-        if (!isDirectory(resource.path)) {
-            throw ResourceException("Resource \"$resource\" is not a directory")
-        }
-    }
-
-    fun resourceIsAbsent(resource: Resource) {
-        if (exists(resource.path)) {
-            throw ResourceException("Resource \"$resource\" exists")
-        }
-    }
-
-    fun resourceParentExists(resource: Resource) {
-        if (resource.parent == null || !exists(resource.parent.path)) {
-            throw ResourceException("Resource \"$resource\" exists")
+        when (requirement) {
+            ResourceRequirement.RESOURCE_EXISTS -> {
+                if (!exists(path)) {
+                    throw ResourceException(
+                        ResourceException.Type.RESOURCE_DOES_NOT_EXIST,
+                        message ?: "\"$path\" could not be found"
+                    )
+                }
+            }
+            ResourceRequirement.RESOURCE_DOES_NOT_EXIST -> {
+                if (exists(path)) {
+                    throw ResourceException(
+                        ResourceException.Type.RESOURCE_ALREADY_EXISTS,
+                        message ?: "\"$path\" exists"
+                    )
+                }
+            }
+            ResourceRequirement.RESOURCE_IS_DIRECTORY -> {
+                if (!isDirectory(path)) {
+                    throw ResourceException(
+                        ResourceException.Type.RESOURCE_IS_NOT_DIRECTORY,
+                        message ?: "\"$path\" is not a directory"
+                    )
+                }
+            }
+            ResourceRequirement.RESOURCE_PARENT_EXIST -> {
+                if (resource.parent == null || !exists(path.parent)) {
+                    throw ResourceException(
+                        ResourceException.Type.RESOURCE_PARENT_DOES_NOT_EXIST,
+                        message ?: "Parent directory \"${path.parent}\" could not be found"
+                    )
+                }
+            }
         }
     }
 }

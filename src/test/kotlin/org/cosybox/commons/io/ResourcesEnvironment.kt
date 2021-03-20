@@ -1,7 +1,7 @@
 package org.cosybox.commons.io
 
 import java.io.File
-import java.nio.file.Files
+import java.io.IOException
 import java.nio.file.Files.*
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -9,75 +9,69 @@ import java.nio.file.Paths
 class ResourcesEnvironment {
 
     companion object {
-        const val RESOURCES_DIRECTORY = "test-resources"
-        val PATH_SEPARATOR = File.separatorChar
+        const val ROOT_DIRECTORY = "environment"
+        private val PATH_SEPARATOR: Char = File.separatorChar
     }
 
     fun setup() {
-        Files.createDirectory(Paths.get(RESOURCES_DIRECTORY))
+        createDirectory(ROOT_DIRECTORY)
     }
 
-    fun cleanup() = removeResource(RESOURCES_DIRECTORY)
+    fun cleanup() = Paths.get(ROOT_DIRECTORY).remove()
 
-    fun removeResource(resource: Path) {
-        if (!exists(resource)) {
+    fun joinToPath(vararg parts: String): Path = Paths.get(parts.joinToString(PATH_SEPARATOR.toString()))
+
+    fun createResource(path: Path, contents: String? = null): Resource {
+        if (exists(path)) {
+            throw IOException("\"$path\" exists")
+        }
+
+        return Resource(writeString(Paths.get(ROOT_DIRECTORY).resolve(path), contents ?: ""))
+    }
+
+    fun createResource(path: String, contents: String? = null): Resource =
+        createResource(Paths.get(path), contents)
+
+    fun createResource(vararg parts: String, contents: String? = null): Resource =
+        createResource(joinToPath(*parts), contents)
+
+    fun createDirectory(path: Path): Resource {
+        if (exists(path)) {
+            throw IOException("\"$path exists\"")
+        }
+
+        return Resource(createDirectories(Paths.get(ROOT_DIRECTORY).resolve(path)))
+    }
+
+    fun createDirectory(path: String): Resource = createDirectory(Paths.get(path))
+
+    fun createDirectory(vararg pats: String): Resource = createDirectory(joinToPath(*pats))
+
+    fun removeResource(path: Path) = path.remove()
+
+    fun removeResource(path: String) = removeResource(Paths.get(path))
+
+    fun removeResource(vararg parts: String) = removeResource(joinToPath(*parts))
+
+    fun resourceAt(path: Path): Resource = Resource(Paths.get(ROOT_DIRECTORY).resolve(path))
+
+    fun resourceAt(path: String): Resource = resourceAt(Paths.get(path))
+
+    fun resourceAt(vararg parts: String): Resource = resourceAt(joinToPath(*parts))
+
+    private fun Path.remove() {
+        if (!exists(this)) {
             return
         }
 
-        if (isDirectory(resource)) {
-            resource.list().reversed().forEach {
+        if (isDirectory(this)) {
+            this.list().reversed().forEach {
                 delete(it)
             }
         }
 
-        delete(resource)
+        delete(this)
     }
-
-    fun removeResource(resource: String) = removeResource(Paths.get(resource))
-
-    fun removeResource(vararg parts: String) = removeResource(joinToPath(*parts))
-
-    fun createEmptyResource(resource: Path): Path =
-        if (exists(resource)) {
-            throw RuntimeException("\"$resource\" exists")
-        } else {
-            writeString(Paths.get(RESOURCES_DIRECTORY).resolve(resource), "")
-        }
-
-    fun createEmptyResource(resource: String): Path = createEmptyResource(Paths.get(resource))
-
-    fun createEmptyResource(vararg parts: String): Path = createEmptyResource(joinToPath(*parts))
-
-    fun createResource(resource: Path, contents: String? = null): Path =
-        if (contents == null || contents.isEmpty()) {
-            createEmptyResource(resource)
-        } else {
-            writeString(Paths.get(RESOURCES_DIRECTORY).resolve(resource), contents)
-        }
-
-    fun createResource(resource: String, contents: String? = null): Path = createResource(Paths.get(resource), contents)
-
-    fun createResource(vararg parts: String, contents: String? = null): Path =
-        createResource(joinToPath(*parts), contents)
-
-    fun createDirectory(directory: Path): Path =
-        if (exists(directory)) {
-            throw RuntimeException("\"$directory\" exists")
-        } else {
-            createDirectories(Paths.get(RESOURCES_DIRECTORY).resolve(directory))
-        }
-
-    fun createDirectory(directory: String): Path = createDirectory(Paths.get(directory))
-
-    fun createDirectory(vararg parts: String): Path = createDirectory(joinToPath(*parts))
-
-    fun joinToPath(vararg parts: String): Path = Paths.get(parts.joinToString(PATH_SEPARATOR.toString()))
-
-    fun resourceAt(path: Path): Path = Paths.get(RESOURCES_DIRECTORY).resolve(path)
-
-    fun resourceAt(path: String): Path = resourceAt(Paths.get(path))
-
-    fun resourceAt(vararg parts: String) = resourceAt(joinToPath(*parts))
 
     private fun Path.list(): List<Path> {
         val paths = ArrayList<Path>()
@@ -87,7 +81,9 @@ class ResourcesEnvironment {
                 paths.add(path)
 
                 if (isDirectory(path)) {
-                    path.list().forEach { paths.add(it) }
+                    path.list().forEach {
+                        paths.add(it)
+                    }
                 }
             }
         }
