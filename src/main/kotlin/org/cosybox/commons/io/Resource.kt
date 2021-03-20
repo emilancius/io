@@ -161,8 +161,8 @@ class Resource(val path: Path) {
 
     fun createDirectory(): Resource {
         require(RESOURCE_DOES_NOT_EXIST, this)
-        require(RESOURCE_PARENT_EXIST, parent!!)
-        require(RESOURCE_IS_DIRECTORY, parent)
+        require(RESOURCE_PARENT_EXIST, this)
+        require(RESOURCE_IS_DIRECTORY, parent!!)
         return Resource(Files.createDirectory(path))
     }
 

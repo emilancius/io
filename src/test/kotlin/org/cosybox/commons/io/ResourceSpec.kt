@@ -445,4 +445,58 @@ class ResourceSpec {
         assertEquals(1, list(moved.path).count())
         assertEquals("TEST A", readString(environment.resourceAt("DIRECTORY_B", "DIRECTORY_A", "FILE_A.txt").path))
     }
+
+    @Test
+    fun `Given resource, that does exist, produces ResourceException in case it is tried to be created as directory`() {
+        environment.createDirectory("DIRECTORY_A")
+
+        assertThrows<ResourceException> {
+            Resource(environment.joinToPath("DIRECTORY_A")).createDirectory()
+        }
+    }
+
+    @Test
+    fun `Given resource, that has no parent, produces ResourceException in case it is tried to be created as directory`() {
+        assertThrows<ResourceException> {
+            Resource("DIRECTORY_A").createDirectory()
+        }
+    }
+
+    @Test
+    fun `Given resource, that has parent, but it is not a directory, produces ResourceException in case it is tried to be created as directory`() {
+        environment.createResource("FILE_A.txt")
+
+        assertThrows<ResourceException> {
+            Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "FILE_A.txt", "DIRECTORY_A"))
+                .createDirectory()
+        }
+    }
+
+    @Test
+    fun `Given resource, that does not exist, creates it as directory`() {
+        val directory = Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "DIRECTORY_A"))
+            .createDirectory()
+
+        assertTrue(exists(directory.path))
+        assertTrue(isDirectory(directory.path))
+    }
+
+    @Test
+    fun `Given resource, that does exist, produces ResourceException in case it is (and it's parent directory structure) tried to be created as directory`() {
+        environment.createDirectory("DIRECTORY_A", "DIRECTORY_B")
+
+        assertThrows<ResourceException> {
+            Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "DIRECTORY_A", "DIRECTORY_B"))
+                .createDirectories()
+        }
+    }
+
+    @Test
+    fun `Given resource, that does not exist, creates it (and it's parent directory structure) as directories`() {
+        val dir = Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "DIRECTORY_A", "DIRECTORY_B"))
+            .createDirectories()
+
+        assertTrue(exists(dir.path))
+        assertTrue(exists(dir.path.parent))
+    }
 }

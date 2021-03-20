@@ -7,7 +7,7 @@ import java.nio.file.Files.*
 object ResourcePrerequisites {
 
     fun require(requirement: ResourceRequirement, resource: Resource, message: String? = null) {
-        var path = resource.path
+        val path = resource.path
 
         when (requirement) {
             ResourceRequirement.RESOURCE_EXISTS -> {
