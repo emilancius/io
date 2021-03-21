@@ -499,4 +499,77 @@ class ResourceSpec {
         assertTrue(exists(dir.path))
         assertTrue(exists(dir.path.parent))
     }
+
+    @Test
+    fun `Given input stream and path, produces ResourceException in case tried to create resource from input stream, that exists`() {
+        assertThrows<ResourceException> {
+            val inputStream = environment.createResource("FILE_A.txt", contents = "TEST_A").openInputStream()
+            Resource.createFromInputStream(
+                inputStream,
+                environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "FILE_A.txt")
+            )
+        }
+    }
+
+    @Test
+    fun `Given input stream and path, produces ResourceException in case tried to create resource from input stream at path, that does not exist`() {
+        assertThrows<ResourceException> {
+            val inputStream = environment.createResource("FILE_A.txt", contents = "TEST_A").openInputStream()
+            Resource.createFromInputStream(
+                inputStream,
+                environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "DIRECTORY_A", "FILE_A.txt")
+            )
+        }
+    }
+
+    @Test
+    fun `Given input stream and path, produces ResourceException in case tried to create resource from input stream at path, that does not represent directory`() {
+        assertThrows<ResourceException> {
+            val inputStream = environment.createResource("FILE_A.txt", contents = "TEST_A").openInputStream()
+            Resource.createFromInputStream(
+                inputStream,
+                environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "FILE_A.txt", "FILE_B.txt")
+            )
+        }
+    }
+
+    @Test
+    fun `Given input stream and path, creates resource from an input stream at provided path`() {
+        environment.createDirectory("DIRECTORY_A")
+        environment.createResource("FILE_A.txt", contents = "TEST_A").openInputStream().use { inputStream ->
+            Resource.createFromInputStream(
+                inputStream,
+                environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "DIRECTORY_A", "FILE_A copy.txt").toString()
+            )
+        }
+
+        val resource = environment.resourceAt("DIRECTORY_A", "FILE_A copy.txt")
+
+        assertTrue(exists(resource.path))
+        assertEquals("TEST_A", readString(resource.path))
+    }
+
+    @Test
+    fun `Given resource, compresses it into an archive at provided path`() {
+        val resource = environment.createResource("FILE_A.txt")
+        val archive = resource
+            .compressAsZip(Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "ARCHIVE.zip")))
+
+        assertTrue(exists(archive.path))
+        assertTrue(size(archive.path) > 0)
+    }
+
+    @Test
+    fun `Given resource, that is zip archive, extracts it`() {
+        val resource = environment.createResource("FILE_A.txt")
+        val archive = resource
+            .compressAsZip(Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "ARCHIVE.zip")))
+        environment.removeResource(resource.path)
+        val extracted = archive.extractZip()
+
+        assertEquals(1, extracted.size)
+        extracted.forEach {
+            assertTrue(exists(it.path))
+        }
+    }
 }

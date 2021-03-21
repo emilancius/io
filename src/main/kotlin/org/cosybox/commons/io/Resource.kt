@@ -1,5 +1,9 @@
 package org.cosybox.commons.io
 
+import org.cosybox.commons.io.compression.CompressionParameters
+import org.cosybox.commons.io.compression.CompressionType
+import org.cosybox.commons.io.compression.CompressorFactory
+import org.cosybox.commons.io.compression.ExtractorFactory
 import org.cosybox.commons.io.prerequisites.ResourceRequirement.*
 import java.io.File
 import java.io.InputStream
@@ -170,6 +174,14 @@ class Resource(val path: Path) {
         require(RESOURCE_DOES_NOT_EXIST, this)
         return Resource(Files.createDirectories(path))
     }
+
+    fun compressAsZip(archive: Resource): Resource = CompressorFactory
+        .create(CompressionType.ZIP, CompressionParameters.Creator().level(5).create())
+        .compress(this, archive)
+
+    fun extractZip(directory: Resource? = null): List<Resource> = ExtractorFactory
+        .create(CompressionType.ZIP)
+        .extract(this, directory)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
