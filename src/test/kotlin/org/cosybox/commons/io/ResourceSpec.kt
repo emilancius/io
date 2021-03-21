@@ -548,4 +548,28 @@ class ResourceSpec {
         assertTrue(exists(resource.path))
         assertEquals("TEST_A", readString(resource.path))
     }
+
+    @Test
+    fun `Given resource, compresses it into an archive at provided path`() {
+        val resource = environment.createResource("FILE_A.txt")
+        val archive = resource
+            .compressAsZip(Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "ARCHIVE.zip")))
+
+        assertTrue(exists(archive.path))
+        assertTrue(size(archive.path) > 0)
+    }
+
+    @Test
+    fun `Given resource, that is zip archive, extracts it`() {
+        val resource = environment.createResource("FILE_A.txt")
+        val archive = resource
+            .compressAsZip(Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "ARCHIVE.zip")))
+        environment.removeResource(resource.path)
+        val extracted = archive.extractZip()
+
+        assertEquals(1, extracted.size)
+        extracted.forEach {
+            assertTrue(exists(it.path))
+        }
+    }
 }

@@ -14,7 +14,7 @@ class ResourcesEnvironment {
     }
 
     fun setup() {
-        createDirectory(ROOT_DIRECTORY)
+        createDirectories(Paths.get(ROOT_DIRECTORY))
     }
 
     fun cleanup() = Paths.get(ROOT_DIRECTORY).remove()
