@@ -2,7 +2,7 @@ package org.cosybox.commons.io.compression
 
 import org.cosybox.commons.io.Resource
 import org.cosybox.commons.io.ResourcesEnvironment
-import org.cosybox.commons.io.exception.ResourceException
+import org.cosybox.commons.io.exceptions.ResourceException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue

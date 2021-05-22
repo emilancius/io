@@ -4,7 +4,8 @@ import org.cosybox.commons.io.Resource
 
 interface Compressor {
 
-    fun compress(resources: List<Resource>, archive: Resource): Resource
+    fun compress(resources: List<Resource>, destination: Resource): Resource
 
-    fun compress(resource: Resource, archive: Resource): Resource = compress(listOf(resource), archive)
+    fun compress(resource: Resource, destination: Resource): Resource =
+        compress(listOf(resource), destination)
 }
