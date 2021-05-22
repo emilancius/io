@@ -13,7 +13,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Files
 import kotlin.io.path.*
-import kotlin.jvm.Throws
 
 class Resource(val path: Path) {
 
@@ -21,7 +20,6 @@ class Resource(val path: Path) {
         val PATH_SEPARATOR: Char = File.separatorChar
         private const val EXTENSION_SEPARATOR: Char = '.'
 
-        @Throws(ResourceException::class)
         fun createFromInputStream(inputStream: InputStream, path: Path): Resource {
             val resource = Resource(path)
             require(RESOURCE_DOES_NOT_EXIST, resource)
@@ -29,7 +27,6 @@ class Resource(val path: Path) {
             return inputStream.copyTo(resource)
         }
 
-        @Throws(ResourceException::class)
         fun createFromInputStream(inputStream: InputStream, path: String): Resource =
             createFromInputStream(inputStream, Path.of(path))
 
@@ -54,13 +51,11 @@ class Resource(val path: Path) {
 
     fun exists(): Boolean = path.exists()
 
-    @Throws(ResourceException::class)
     fun isDirectory(): Boolean {
         require(RESOURCE_EXISTS, this)
         return path.isDirectory()
     }
 
-    @Throws(ResourceException::class)
     fun list(depth: Long = 1): List<Resource> {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_IS_DIRECTORY, this)
@@ -81,14 +76,12 @@ class Resource(val path: Path) {
         return resources
     }
 
-    @Throws(ResourceException::class)
     fun isEmpty(): Boolean {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_IS_DIRECTORY, this)
         return list(this).isEmpty()
     }
 
-    @Throws(ResourceException::class)
     fun bytesCount(): Long =
         if (isDirectory()) {
             list(Long.MAX_VALUE).sumOf { if (it.isDirectory()) 0L else it.bytesCount() }
@@ -96,14 +89,12 @@ class Resource(val path: Path) {
             Files.size(path)
         }
 
-    @Throws(ResourceException::class)
     fun removeContents() {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_IS_DIRECTORY, this)
         removeContents(this)
     }
 
-    @Throws(ResourceException::class)
     fun remove() {
         if (isDirectory()) {
             removeContents()
@@ -112,7 +103,6 @@ class Resource(val path: Path) {
         Files.delete(this.path)
     }
 
-    @Throws(ResourceException::class)
     fun copyTo(directory: Resource, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_EXISTS, directory)
@@ -121,30 +111,24 @@ class Resource(val path: Path) {
         return copy(this, copy, copyStrategy)
     }
 
-    @Throws(ResourceException::class)
     fun copyTo(directory: Path, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
         copyTo(Resource(directory), copyStrategy)
 
-    @Throws(ResourceException::class)
     fun copyTo(directory: String, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
         copyTo(Resource(directory), copyStrategy)
 
-    @Throws(ResourceException::class)
     fun copyAs(resource: Resource, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource {
         require(RESOURCE_EXISTS, this)
         require(PARENT_DIRECTORY_EXISTS, resource)
         return copy(this, resource, copyStrategy)
     }
 
-    @Throws(ResourceException::class)
     fun copyAs(resource: Path, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
         copyAs(Resource(resource), copyStrategy)
 
-    @Throws(ResourceException::class)
     fun copyAs(resource: String, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
         copyAs(Resource(resource), copyStrategy)
 
-    @Throws(ResourceException::class)
     fun renameTo(name: String): Resource {
         require(!name.trim().isEmpty()) {
             "Argument \"name\" cannot be empty"
@@ -156,18 +140,15 @@ class Resource(val path: Path) {
         return resource
     }
 
-    @Throws(ResourceException::class)
     fun moveTo(directory: Resource, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource {
         val resource = copyTo(directory, copyStrategy)
         remove()
         return resource
     }
 
-    @Throws(ResourceException::class)
     fun moveTo(directory: Path, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
         moveTo(Resource(directory), copyStrategy)
 
-    @Throws(ResourceException::class)
     fun moveTo(directory: String, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
         moveTo(Resource(directory), copyStrategy)
 
@@ -175,14 +156,12 @@ class Resource(val path: Path) {
 
     fun openOutputStream(): OutputStream = path.outputStream()
 
-    @Throws(ResourceException::class)
     fun createDirectory(): Resource {
         require(RESOURCE_DOES_NOT_EXIST, this)
         require(PARENT_DIRECTORY_EXISTS, this)
         return Resource(path.createDirectory())
     }
 
-    @Throws(ResourceException::class)
     fun createDirectories(): Resource {
         require(RESOURCE_DOES_NOT_EXIST, this)
         return Resource(path.createDirectories())
