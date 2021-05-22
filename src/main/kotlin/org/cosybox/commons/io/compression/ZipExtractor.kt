@@ -9,7 +9,6 @@ import kotlin.jvm.Throws
 
 class ZipExtractor : Extractor {
 
-    @Throws(ResourceException::class)
     override fun extract(source: Resource, directory: Resource?): List<Resource> {
         require(RESOURCE_EXISTS, source)
         val dir = directory

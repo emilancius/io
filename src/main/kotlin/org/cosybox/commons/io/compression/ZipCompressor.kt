@@ -10,7 +10,6 @@ import kotlin.jvm.Throws
 
 class ZipCompressor(private val parameters: CompressionParameters) : Compressor {
 
-    @Throws(ResourceException::class)
     override fun compress(resources: List<Resource>, destination: Resource): Resource {
         resources.forEach {
             require(RESOURCE_EXISTS, it)
