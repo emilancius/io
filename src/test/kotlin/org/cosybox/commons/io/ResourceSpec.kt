@@ -1,6 +1,6 @@
 package org.cosybox.commons.io
 
-import org.cosybox.commons.io.exception.ResourceException
+import org.cosybox.commons.io.exceptions.ResourceException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files.*
 import java.nio.file.Paths
+import java.nio.file.FileSystemException
 import java.util.stream.Collectors
 
 class ResourceSpec {
@@ -331,7 +332,7 @@ class ResourceSpec {
         val resource = environment.createResource("FILE_A.txt")
         val target = environment.createResource("FILE_B.txt").path.resolve("FILE_A copy.txt")
 
-        assertThrows<ResourceException> {
+        assertThrows<FileSystemException> {
             resource.copyAs(target)
         }
     }
@@ -463,10 +464,10 @@ class ResourceSpec {
     }
 
     @Test
-    fun `Given resource, that has parent, but it is not a directory, produces ResourceException in case it is tried to be created as directory`() {
+    fun `Given resource, that has parent, but it is not a directory, produces FileSystemException in case it is tried to be created as directory`() {
         environment.createResource("FILE_A.txt")
 
-        assertThrows<ResourceException> {
+        assertThrows<FileSystemException> {
             Resource(environment.joinToPath(ResourcesEnvironment.ROOT_DIRECTORY, "FILE_A.txt", "DIRECTORY_A"))
                 .createDirectory()
         }
@@ -524,7 +525,7 @@ class ResourceSpec {
 
     @Test
     fun `Given input stream and path, produces ResourceException in case tried to create resource from input stream at path, that does not represent directory`() {
-        assertThrows<ResourceException> {
+        assertThrows<FileSystemException> {
             val inputStream = environment.createResource("FILE_A.txt", contents = "TEST_A").openInputStream()
             Resource.createFromInputStream(
                 inputStream,

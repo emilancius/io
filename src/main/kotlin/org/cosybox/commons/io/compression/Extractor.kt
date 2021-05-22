@@ -4,5 +4,5 @@ import org.cosybox.commons.io.Resource
 
 interface Extractor {
 
-    fun extract(archive: Resource, directory: Resource? = null): List<Resource>
+    fun extract(source: Resource, directory: Resource? = null): List<Resource>
 }

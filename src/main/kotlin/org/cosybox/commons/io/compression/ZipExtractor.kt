@@ -1,20 +1,23 @@
 package org.cosybox.commons.io.compression
 
 import org.cosybox.commons.io.Resource
-import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.require as require
-import org.cosybox.commons.io.prerequisites.ResourceRequirement.*
+import org.cosybox.commons.io.exceptions.ResourceException
+import org.cosybox.commons.io.prerequisites.ResourceRequirements.Companion.require
+import org.cosybox.commons.io.prerequisites.ResourceRequirements.Requirement.*
 import java.util.zip.ZipInputStream
-
+import kotlin.jvm.Throws
 
 class ZipExtractor : Extractor {
 
-    override fun extract(archive: Resource, directory: Resource?): List<Resource> {
-        require(RESOURCE_EXISTS, archive)
+    @Throws(ResourceException::class)
+    override fun extract(source: Resource, directory: Resource?): List<Resource> {
+        require(RESOURCE_EXISTS, source)
         val dir = directory
             ?.let {
-                require(RESOURCE_PARENT_EXIST, it)
+                require(PARENT_DIRECTORY_EXISTS, directory)
                 it
-            } ?: archive.parent!!
+            }
+            ?: source.parent!!
 
         if (!dir.exists()) {
             dir.createDirectory()
@@ -22,7 +25,7 @@ class ZipExtractor : Extractor {
 
         val resources = ArrayList<Resource>()
 
-        ZipInputStream(archive.openInputStream()).use { inputStream ->
+        ZipInputStream(source.openInputStream()).use { inputStream ->
             var entry = inputStream.nextEntry
 
             while (entry != null) {

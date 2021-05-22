@@ -4,15 +4,16 @@ import org.cosybox.commons.io.compression.CompressionParameters
 import org.cosybox.commons.io.compression.CompressionType
 import org.cosybox.commons.io.compression.CompressorFactory
 import org.cosybox.commons.io.compression.ExtractorFactory
-import org.cosybox.commons.io.prerequisites.ResourceRequirement.*
+import org.cosybox.commons.io.exceptions.ResourceException
+import java.nio.file.Path
+import org.cosybox.commons.io.prerequisites.ResourceRequirements.Companion.require
+import org.cosybox.commons.io.prerequisites.ResourceRequirements.Requirement.*
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.util.stream.Collectors
-import org.cosybox.commons.io.prerequisites.ResourcePrerequisites.require as require
+import kotlin.io.path.*
+import kotlin.jvm.Throws
 
 class Resource(val path: Path) {
 
@@ -20,16 +21,17 @@ class Resource(val path: Path) {
         val PATH_SEPARATOR: Char = File.separatorChar
         private const val EXTENSION_SEPARATOR: Char = '.'
 
+        @Throws(ResourceException::class)
         fun createFromInputStream(inputStream: InputStream, path: Path): Resource {
             val resource = Resource(path)
             require(RESOURCE_DOES_NOT_EXIST, resource)
-            require(RESOURCE_PARENT_EXIST, resource)
-            require(RESOURCE_IS_DIRECTORY, resource.parent!!)
+            require(PARENT_DIRECTORY_EXISTS, resource)
             return inputStream.copyTo(resource)
         }
 
+        @Throws(ResourceException::class)
         fun createFromInputStream(inputStream: InputStream, path: String): Resource =
-            createFromInputStream(inputStream, Paths.get(path))
+            createFromInputStream(inputStream, Path.of(path))
 
         private fun InputStream.copyTo(resource: Resource): Resource =
             resource.path.let {
@@ -38,29 +40,28 @@ class Resource(val path: Path) {
             }
     }
 
-    val name: String = path
-        .toString()
-        .split(PATH_SEPARATOR)
-        .last()
+    val name: String = path.name
     val extension: String? = name
         .lastIndexOf(EXTENSION_SEPARATOR)
         .let { if (it > 0) name.substring(it + 1) else null }
     val parent: Resource? = path.parent?.let { Resource(it) }
 
-    constructor(path: String) : this(Paths.get(path)) {
+    constructor(path: String) : this(Path.of(path)) {
         if (path.isEmpty()) {
             throw InstantiationException("Argument \"path\" cannot be empty")
         }
     }
 
-    fun exists(): Boolean = Files.exists(path)
+    fun exists(): Boolean = path.exists()
 
+    @Throws(ResourceException::class)
     fun isDirectory(): Boolean {
         require(RESOURCE_EXISTS, this)
-        return Files.isDirectory(path)
+        return path.isDirectory()
     }
 
-    fun list(depth: Int = 1): List<Resource> {
+    @Throws(ResourceException::class)
+    fun list(depth: Long = 1): List<Resource> {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_IS_DIRECTORY, this)
 
@@ -70,78 +71,84 @@ class Resource(val path: Path) {
 
         val resources = ArrayList<Resource>()
 
-        listContents(this).forEach { resource ->
+        list(this).forEach { resource ->
             resources.add(resource)
 
             if (resource.isDirectory()) {
-                resource.list(depth.dec()).forEach {
-                    resources.add(it)
-                }
+                resource.list(depth = depth.dec()).forEach { resources.add(it) }
             }
         }
-
         return resources
     }
 
+    @Throws(ResourceException::class)
     fun isEmpty(): Boolean {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_IS_DIRECTORY, this)
-        return listContents(this).isEmpty()
+        return list(this).isEmpty()
     }
 
+    @Throws(ResourceException::class)
     fun bytesCount(): Long =
         if (isDirectory()) {
-            list(Int.MAX_VALUE)
-                .map { if (it.isDirectory()) 0 else it.bytesCount() }
-                .sum()
+            list(Long.MAX_VALUE).sumOf { if (it.isDirectory()) 0L else it.bytesCount() }
         } else {
             Files.size(path)
         }
 
-    fun remove() {
-        if (isDirectory()) {
-            removeContents(this)
-        }
-
-        Files.delete(path)
-    }
-
+    @Throws(ResourceException::class)
     fun removeContents() {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_IS_DIRECTORY, this)
         removeContents(this)
     }
 
-    fun copyTo(directory: Resource): Resource {
+    @Throws(ResourceException::class)
+    fun remove() {
+        if (isDirectory()) {
+            removeContents()
+        }
+
+        Files.delete(this.path)
+    }
+
+    @Throws(ResourceException::class)
+    fun copyTo(directory: Resource, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource {
         require(RESOURCE_EXISTS, this)
         require(RESOURCE_EXISTS, directory)
         require(RESOURCE_IS_DIRECTORY, directory)
-        val resource = Resource(directory.path.resolve(name))
-        require(RESOURCE_DOES_NOT_EXIST, resource)
-        return copy(this, resource)
+        val copy = Resource(directory.path.resolve(name))
+        return copy(this, copy, copyStrategy)
     }
 
-    fun copyTo(directory: Path): Resource = copyTo(Resource(directory))
+    @Throws(ResourceException::class)
+    fun copyTo(directory: Path, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
+        copyTo(Resource(directory), copyStrategy)
 
-    fun copyTo(directory: String): Resource = copyTo(Resource(directory))
+    @Throws(ResourceException::class)
+    fun copyTo(directory: String, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
+        copyTo(Resource(directory), copyStrategy)
 
-    fun copyAs(resource: Resource): Resource {
+    @Throws(ResourceException::class)
+    fun copyAs(resource: Resource, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource {
         require(RESOURCE_EXISTS, this)
-        require(RESOURCE_DOES_NOT_EXIST, resource)
-        require(RESOURCE_PARENT_EXIST, resource)
-        require(RESOURCE_IS_DIRECTORY, resource.parent!!)
-        return copy(this, resource)
+        require(PARENT_DIRECTORY_EXISTS, resource)
+        return copy(this, resource, copyStrategy)
     }
 
-    fun copyAs(resource: Path): Resource = copyAs(Resource(resource))
+    @Throws(ResourceException::class)
+    fun copyAs(resource: Path, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
+        copyAs(Resource(resource), copyStrategy)
 
-    fun copyAs(resource: String): Resource = copyAs(Resource(resource))
+    @Throws(ResourceException::class)
+    fun copyAs(resource: String, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
+        copyAs(Resource(resource), copyStrategy)
 
+    @Throws(ResourceException::class)
     fun renameTo(name: String): Resource {
         require(!name.trim().isEmpty()) {
             "Argument \"name\" cannot be empty"
         }
-
         require(RESOURCE_EXISTS, this)
         val resource = Resource(path.resolveSibling(name))
         require(RESOURCE_DOES_NOT_EXIST, resource)
@@ -149,35 +156,41 @@ class Resource(val path: Path) {
         return resource
     }
 
-    fun moveTo(directory: Resource): Resource {
-        val resource = copyTo(directory)
+    @Throws(ResourceException::class)
+    fun moveTo(directory: Resource, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource {
+        val resource = copyTo(directory, copyStrategy)
         remove()
         return resource
     }
 
-    fun moveTo(directory: Path): Resource = moveTo(Resource(directory))
+    @Throws(ResourceException::class)
+    fun moveTo(directory: Path, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
+        moveTo(Resource(directory), copyStrategy)
 
-    fun moveTo(directory: String): Resource = moveTo(Resource(directory))
+    @Throws(ResourceException::class)
+    fun moveTo(directory: String, copyStrategy: CopyStrategy = CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT): Resource =
+        moveTo(Resource(directory), copyStrategy)
 
-    fun openInputStream(): InputStream = Files.newInputStream(path)
+    fun openInputStream(): InputStream = path.inputStream()
 
-    fun openOutputStream(): OutputStream = Files.newOutputStream(path)
+    fun openOutputStream(): OutputStream = path.outputStream()
 
+    @Throws(ResourceException::class)
     fun createDirectory(): Resource {
         require(RESOURCE_DOES_NOT_EXIST, this)
-        require(RESOURCE_PARENT_EXIST, this)
-        require(RESOURCE_IS_DIRECTORY, parent!!)
-        return Resource(Files.createDirectory(path))
+        require(PARENT_DIRECTORY_EXISTS, this)
+        return Resource(path.createDirectory())
     }
 
+    @Throws(ResourceException::class)
     fun createDirectories(): Resource {
         require(RESOURCE_DOES_NOT_EXIST, this)
-        return Resource(Files.createDirectories(path))
+        return Resource(path.createDirectories())
     }
 
-    fun compressAsZip(archive: Resource): Resource = CompressorFactory
-        .create(CompressionType.ZIP, CompressionParameters.Creator().level(5).create())
-        .compress(this, archive)
+    fun compressAsZip(destination: Resource, compressionLevel: Int = 5): Resource = CompressorFactory
+        .create(CompressionType.ZIP, CompressionParameters.Creator().level(compressionLevel).create())
+        .compress(this, destination)
 
     fun extractZip(directory: Resource? = null): List<Resource> = ExtractorFactory
         .create(CompressionType.ZIP)
@@ -207,21 +220,29 @@ class Resource(val path: Path) {
 
     override fun toString(): String = path.toString()
 
-    private fun listContents(directory: Resource): List<Resource> =
-        Files.list(directory.path).map { Resource(it) }.collect(Collectors.toList())
+    private fun list(resource: Resource): List<Resource> =
+        resource.path.listDirectoryEntries().map { Resource(it) }
 
     private fun removeContents(directory: Resource) =
-        directory.list(Int.MAX_VALUE).reversed().forEach { Files.delete(it.path) }
+        directory.list(Long.MAX_VALUE).reversed().forEach { Files.delete(it.path) }
 
-    private fun copy(resource: Resource, destination: Resource): Resource {
-        Files.copy(resource.path, destination.path)
-
-        if (resource.isDirectory()) {
-            resource.list(Int.MAX_VALUE).forEach {
-                Files.copy(it.path, destination.path.resolve(resource.path.relativize(it.path)))
+    private fun copy(resource: Resource, copy: Resource, copyStrategy: CopyStrategy): Resource {
+        if (copy.exists()) {
+            when (copyStrategy) {
+                CopyStrategy.RAISE_EXCEPTION_ON_CONFLICT ->
+                    throw ResourceException(ResourceException.Type.RESOURCE_ALREADY_EXISTS, "\"$copy\" exists")
+                CopyStrategy.OVERWRITE_ON_CONFLICT -> copy.remove()
             }
         }
 
-        return destination
+        Files.copy(resource.path, copy.path)
+
+        if (resource.isDirectory()) {
+            resource.list(Long.MAX_VALUE).forEach {
+                Files.copy(it.path, copy.path.resolve(resource.path.relativize(it.path)))
+            }
+        }
+
+        return copy
     }
 }
